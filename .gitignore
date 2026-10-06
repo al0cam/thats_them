@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Downloaded profile photos and search results (other people's data)
+candidates/
+
+# Pasted screenshots and cropped avatars
+targets/
+
+# Generated reports
+report*.html
+
+# API keys
+.env

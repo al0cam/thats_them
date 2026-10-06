@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>That's Them</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #fff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e3e1dc;
+    --accent: #0a66c2; --accent-ink: #fff; --good: #1f7a4d; --warn: #a36500; --bad: #a33b3b;
+    --sel: rgba(10,102,194,.9);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151514; --panel: #1f1f1d; --ink: #ecebe7; --muted: #9d9b95; --line: #33332f;
+      --accent: #4c9be8; --accent-ink: #0b1a29; --good: #5cc28c; --warn: #e0a64a; --bad: #e07a7a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 28px 16px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0 0 22px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .input-grid { display: grid; grid-template-columns: 1fr 220px; gap: 18px; }
+  @media (max-width: 720px) { .input-grid { grid-template-columns: 1fr; } }
+  #drop { border: 2px dashed var(--line); border-radius: 10px; min-height: 200px; display: grid;
+    place-items: center; text-align: center; color: var(--muted); padding: 12px; outline: none;
+    position: relative; overflow: hidden; }
+  #drop.focus, #drop:focus { border-color: var(--accent); }
+  #drop canvas { max-width: 100%; height: auto; cursor: crosshair; display: block; }
+  kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 5px; }
+  .crop-box { text-align: center; }
+  .crop-box .label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  #crop { width: 144px; height: 144px; border-radius: 50%; background: var(--bg);
+    border: 1px solid var(--line); image-rendering: auto; }
+  .row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+  #hint { flex: 1 1 280px; padding: 10px 12px; font: inherit; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; }
+  #hint:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button { font: inherit; font-weight: 600; padding: 10px 18px; border-radius: 999px; border: 0;
+    background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  label.chk { color: var(--muted); font-size: 14px; display: flex; gap: 6px; align-items: center; }
+  .help { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  #status { margin: 22px 0 10px; color: var(--muted); min-height: 1.4em; }
+  #status.err { color: var(--bad); }
+  .notes { font-size: 13px; color: var(--muted); margin: 0 0 14px; padding-left: 18px; }
+  .verdict { font-weight: 600; margin: 0 0 14px; }
+  .verdict.good { color: var(--good); } .verdict.warn { color: var(--warn); } .verdict.bad { color: var(--bad); }
+  #results { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .card.top { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .pics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .pics figure { margin: 0; text-align: center; }
+  .pics img { width: 100%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; background: var(--bg); display: block; }
+  .pics figcaption { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .rank { font-size: 12px; color: var(--muted); }
+  .name { font-weight: 600; word-break: break-word; }
+  .name a { color: inherit; }
+  .title { font-size: 12px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden; }
+  .bar { height: 5px; border-radius: 3px; background: var(--line); margin-top: 6px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); }
+  .score { font-size: 12px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .target-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .target-row img { width: 56px; height: 56px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<main>
+  <h1>That's Them</h1>
+  <p class="sub">Paste a “Who viewed your profile” screenshot, pick the blurred avatar, say where they work.</p>
+
+  <section class="panel">
+    <div class="input-grid">
+      <div>
+        <div id="drop" tabindex="0">
+          <div id="drop-msg">Click here and press <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste a screenshot,<br>
+            or drop an image file.</div>
+        </div>
+        <div class="help" id="pick-help" hidden>Click a blurred avatar to select it, or drag a square around it.</div>
+      </div>
+      <div class="crop-box">
+        <div class="label">Selected avatar</div>
+        <canvas id="crop" width="144" height="144"></canvas>
+      </div>
+    </div>
+    <div class="row">
+      <input id="hint" placeholder="e.g. 1 works at 2e Systems   (add “, Zagreb” to narrow the search)">
+      <label class="chk"><input type="checkbox" id="refresh"> search again</label>
+      <button id="go" disabled>Find matches</button>
+    </div>
+  </section>
+
+  <div id="status"></div>
+  <div id="out"></div>
+</main>
+
+<script>
+const drop = document.getElementById('drop');
+const dropMsg = document.getElementById('drop-msg');
+const pickHelp = document.getElementById('pick-help');
+const cropCv = document.getElementById('crop');
+const hint = document.getElementById('hint');
+const go = document.getElementById('go');
+const statusEl = document.getElementById('status');
+const out = document.getElementById('out');
+
+let src = null;        // full pasted image as canvas
+let view = null;       // display canvas
+let sel = null;        // {x, y, s} square in source pixels
+
+function setStatus(msg, err) { statusEl.textContent = msg; statusEl.className = err ? 'err' : ''; }
+function ready() { go.disabled = !(sel && hint.value.trim()); }
+hint.addEventListener('input', ready);
+hint.addEventListener('keydown', e => { if (e.key === 'Enter' && !go.disabled) go.click(); });
+
+function loadBlob(blob) {
+  const img = new Image();
+  img.onload = () => {
+    src = document.createElement('canvas');
+    src.width = img.naturalWidth; src.height = img.naturalHeight;
+    src.getContext('2d').drawImage(img, 0, 0);
+    view = document.createElement('canvas');
+    view.width = src.width; view.height = src.height;
+    drop.replaceChildren(view);
+    sel = null;
+    // A small image is already just the avatar.
+    if (src.width <= 160 && src.height <= 160) {
+      const s = Math.min(src.width, src.height);
+      sel = { x: (src.width - s) / 2, y: (src.height - s) / 2, s };
+      pickHelp.hidden = true;
+    } else {
+      pickHelp.hidden = false;
+    }
+    draw(); ready();
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(blob);
+}
+
+document.addEventListener('paste', e => {
+  const item = [...e.clipboardData.items].find(i => i.type.startsWith('image/'));
+  if (item) { e.preventDefault(); loadBlob(item.getAsFile()); }
+});
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('focus'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('focus'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('focus');
+  const f = [...e.dataTransfer.files].find(f => f.type.startsWith('image/'));
+  if (f) loadBlob(f);
+});
+
+function draw() {
+  const ctx = view.getContext('2d');
+  ctx.drawImage(src, 0, 0);
+  const c = cropCv.getContext('2d');
+  c.clearRect(0, 0, 144, 144);
+  if (!sel) return;
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--sel');
+  ctx.lineWidth = Math.max(2, src.width / 400);
+  ctx.strokeRect(sel.x, sel.y, sel.s, sel.s);
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(src, sel.x, sel.y, sel.s, sel.s, 0, 0, 144, 144);
+}
+
+function toSrc(e) {
+  const r = view.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * src.width / r.width, y: (e.clientY - r.top) * src.height / r.height };
+}
+
+// Click: grow outwards from the click until the colour returns to the page
+// background, which finds the bounds of a round avatar on a flat background.
+function detect(px, py) {
+  const { width: w, height: h } = src;
+  const d = src.getContext('2d').getImageData(0, 0, w, h).data;
+  const at = (x, y) => { const i = (y * w + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+  // Background colour: the most common (coarsely quantised) colour in the image.
+  const counts = new Map();
+  for (let i = 0; i < d.length; i += 4 * 7) {
+    const k = (d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | (d[i + 2] >> 3);
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const top = [...counts].reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+  const bg = [(top >> 10 & 31) * 8 + 4, (top >> 5 & 31) * 8 + 4, (top & 31) * 8 + 4];
+  const isBg = (x, y) => { const p = at(x, y); return Math.abs(p[0]-bg[0]) + Math.abs(p[1]-bg[1]) + Math.abs(p[2]-bg[2]) < 24; };
+  const cx = Math.round(px), cy = Math.round(py);
+  if (isBg(cx, cy)) return null;
+  let l = cx, r = cx, t = cy, b = cy;
+  while (l > 0 && !isBg(l - 1, cy)) l--;
+  while (r < w - 1 && !isBg(r + 1, cy)) r++;
+  while (t > 0 && !isBg(cx, t - 1)) t--;
+  while (b < h - 1 && !isBg(cx, b + 1)) b++;
+  // Re-centre once: the first scan line may not pass through the middle.
+  const mx = Math.round((l + r) / 2), my = Math.round((t + b) / 2);
+  l = r = mx; t = b = my;
+  while (l > 0 && !isBg(l - 1, my)) l--;
+  while (r < w - 1 && !isBg(r + 1, my)) r++;
+  while (t > 0 && !isBg(mx, t - 1)) t--;
+  while (b < h - 1 && !isBg(mx, b + 1)) b++;
+  const s = Math.max(r - l + 1, b - t + 1);
+  if (s < 12 || s > 400) return null;
+  return { x: (l + r + 1) / 2 - s / 2, y: (t + b + 1) / 2 - s / 2, s };
+}
+
+let dragStart = null, dragged = false;
+drop.addEventListener('mousedown', e => {
+  if (!view || e.target !== view) return;
+  dragStart = toSrc(e); dragged = false;
+});
+window.addEventListener('mousemove', e => {
+  if (!dragStart) return;
+  const p = toSrc(e);
+  const s = Math.max(Math.abs(p.x - dragStart.x), Math.abs(p.y - dragStart.y));
+  if (s < 6) return;
+  dragged = true;
+  sel = { x: p.x < dragStart.x ? dragStart.x - s : dragStart.x, y: p.y < dragStart.y ? dragStart.y - s : dragStart.y, s };
+  draw();
+});
+window.addEventListener('mouseup', e => {
+  if (!dragStart) return;
+  if (!dragged) {
+    const found = detect(dragStart.x, dragStart.y);
+    if (found) sel = found;
+    else setStatus('No avatar found there. Drag a square around it instead.', true);
+  }
+  dragStart = null; draw(); ready();
+  if (sel) { setStatus(''); hint.focus(); }
+});
+
+function cropDataUrl() {
+  const c = document.createElement('canvas');
+  const s = Math.round(sel.s);
+  c.width = c.height = s;
+  c.getContext('2d').drawImage(src, sel.x, sel.y, sel.s, sel.s, 0, 0, s, s);
+  return c.toDataURL('image/png');
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+go.addEventListener('click', async () => {
+  go.disabled = true; out.replaceChildren();
+  setStatus('Searching and comparing… this can take up to a minute on a first search.');
+  try {
+    const res = await fetch('/api/match', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: cropDataUrl(), hint: hint.value, refresh: document.getElementById('refresh').checked }),
+    });
+    const data = await res.json();
+    render(data);
+  } catch (e) {
+    setStatus('Request failed: ' + e.message, true);
+  } finally { ready(); }
+});
+
+function render(data) {
+  const notes = (data.notes || []).map(n => `<li>${esc(n)}</li>`).join('');
+  if (data.error) {
+    setStatus(data.error, true);
+    out.innerHTML = notes ? `<ul class="notes">${notes}</ul>` : '';
+    return;
+  }
+  setStatus(`Compared ${data.total} candidate photo${data.total === 1 ? '' : 's'} for “${data.company}”${data.extra ? ' (' + data.extra + ')' : ''}.`);
+  const r = data.results;
+  let verdict = '';
+  if (r.length >= 2) {
+    const ratio = r[1].score / Math.max(r[0].score, 0.01);
+    verdict = ratio > 2 ? ['good', `Strong lead: #1 scores ${ratio.toFixed(1)}× better than #2.`]
+      : ratio > 1.3 ? ['warn', `Possible lead: #1 is ahead, but not by much (${ratio.toFixed(2)}×).`]
+      : ['bad', 'Too close to call: the top results score about the same.'];
+  }
+  const worst = Math.max(...r.map(x => x.score));
+  const cards = r.map((x, i) => `
+    <div class="card${i === 0 ? ' top' : ''}">
+      <div class="pics">
+        <figure><img src="${data.target}"><figcaption>Your viewer</figcaption></figure>
+        <figure><img src="${x.blurred}"><figcaption>Them, blurred</figcaption></figure>
+        <figure><img src="${esc(x.photo)}" loading="lazy"><figcaption>Them</figcaption></figure>
+      </div>
+      <div>
+        <div class="rank">#${i + 1}</div>
+        <div class="name">${x.profile ? `<a href="${esc(x.profile)}" target="_blank" rel="noopener">${esc(x.name)}</a>` : esc(x.name)}</div>
+        ${x.title ? `<div class="title">${esc(x.title)}</div>` : ''}
+        <div class="bar"><div style="width:${Math.max(4, 100 * (1 - x.score / (worst * 1.05)))}%"></div></div>
+        <div class="score">score ${x.score} · ΔE ${x.delta_e} · SSIM ${x.ssim}</div>
+      </div>
+    </div>`).join('');
+  out.innerHTML = `
+    <div class="target-row"><img src="${data.target}"><span>Each card shows your blurred viewer next to the candidate blurred the same way. If they look alike, it's a likely match.</span></div>
+    ${verdict ? `<p class="verdict ${verdict[0]}">${verdict[1]}</p>` : ''}
+    ${notes ? `<ul class="notes">${notes}</ul>` : ''}
+    <div id="results">${cards}</div>`;
+}
+</script>
+</body>
+</html>
